@@ -210,7 +210,52 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 ## Paperclip 연동
 
 이 프로젝트는 Paperclip AI 플랫폼(GOO 회사)의 SOKDAK 프로젝트로 관리된다.
+- **Repo**: https://github.com/hshwang1994/sokdak
+- **Workspace**: `5362e549-b0e2-411f-88fd-c7dd2872d36b`
 - **Issues**: GOO-129 ~ GOO-173 (45개)
 - **Goals**: G1(기반) ~ G5(운영)
 - **Routines**: CEO/CTO/QA/Security/DevOps/CoS 주기적 리뷰
 - **Agents**: 15명 전원 참여
+
+---
+
+## 전사 정책 (Round 3 승인, GOO-177/178)
+
+### 이슈 템플릿 (필수 5항목)
+
+모든 이슈 생성 시 아래 항목을 반드시 포함한다:
+
+1. **목표**: 이 이슈가 완료되면 무엇이 달라지는가
+2. **입력**: 이슈 시작에 필요한 사전 조건/데이터
+3. **출력**: 기대하는 deliverable (코드, 문서, 설계)
+4. **제약조건**: 기술적/시간적/아키텍처 제약
+5. **테스트 기준**: 완료를 판단하는 검증 방법
+
+### Actionability Score
+
+| 점수 | 등급 | 조치 |
+|------|------|------|
+| 85-100 | Ready | 즉시 실행 가능 |
+| 70-84 | Acceptable | 실행 가능, 일부 판단 필요 |
+| 50-69 | Needs Spec | 자동 blocked, spec 요청 트리거 |
+| 0-49 | Blocked | 즉시 반려, 작성자에게 리턴 |
+
+### Deliverable 검증 기준
+
+| 이슈 유형 | 필수 deliverable |
+|----------|-----------------|
+| 코드 이슈 | git diff 1개 이상 (실제 파일 변경) |
+| 문서 이슈 | issue document 500자 이상 |
+| 조사 이슈 | 결과 코멘트 + 후속 이슈 생성 |
+| 버그 수정 | 재현 확인 + 코드 변경 + 회귀 테스트 |
+
+### in_review 필수 경유 대상
+
+- priority가 high 또는 critical인 이슈
+- 다른 에이전트가 의존하는 이슈
+- 아키텍처/보안 변경이 포함된 이슈
+
+### 위반 처리
+
+- 동일 에이전트 3회 위반 → CTO 에스컬레이션
+- 코멘트만 남기고 done 처리 → blocked로 리턴
