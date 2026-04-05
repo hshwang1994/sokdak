@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  # ─── PostgreSQL 16 ───
+  db:
+    image: postgres:16-alpine
+    container_name: sokdak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sokdak
+      POSTGRES_USER: sokdak
+      POSTGRES_PASSWORD: sokdak_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - sokdak-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sokdak -d sokdak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Redis 7 ───
+  redis:
+    image: redis:7-alpine
+    container_name: sokdak-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - sokdak-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Next.js App ───
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: sokdak-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://sokdak:sokdak_dev@db:5432/sokdak?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      NODE_ENV: production
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─── Background Worker ───
+  worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.worker
+    container_name: sokdak-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "postgresql://sokdak:sokdak_dev@db:5432/sokdak?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      NODE_ENV: production
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  sokdak-db-data:
+  sokdak-redis-data:

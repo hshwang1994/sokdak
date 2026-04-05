@@ -1,0 +1,388 @@
+// SOKDAK — 사내 익명 커뮤니티 서비스
+// 24 모델: 인증, 커뮤니티, 재미 기능, 관리
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════
+// 인증 & 사용자
+// ═══════════════════════════════════════════
+
+enum Role {
+  user
+  moderator
+  admin
+  super_admin
+  audit_admin
+}
+
+model User {
+  id              String   @id @default(cuid())
+  loginId         String   @unique @map("login_id")
+  displayNickname String   @map("display_nickname")
+  passwordHash    String   @map("password_hash")
+  recoveryKeyHash String?  @map("recovery_key_hash")
+  role            Role     @default(user)
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  sessions      Session[]
+  posts         Post[]
+  comments      Comment[]
+  reactions     Reaction[]
+  reports       Report[]       @relation("Reporter")
+  sanctions     Sanction[]
+  notifications Notification[]
+  bookmarks     Bookmark[]
+  auditLogs     AuditLog[]
+
+  // 재미 기능
+  lunchVoteChoices LunchVoteChoice[]
+  worryBoxEntries  WorryBox[]
+  worryReplies     WorryReply[]
+  emotionShares    EmotionShare[]
+  balanceChoices   BalanceChoice[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  userAgent String?  @map("user_agent")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model JoinCode {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  maxUses   Int       @default(0) @map("max_uses") // 0 = unlimited
+  usedCount Int       @default(0) @map("used_count")
+  expiresAt DateTime? @map("expires_at")
+  isActive  Boolean   @default(true) @map("is_active")
+  createdBy String    @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("join_codes")
+}
+
+// ═══════════════════════════════════════════
+// 커뮤니티
+// ═══════════════════════════════════════════
+
+model Board {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  posts Post[]
+
+  @@map("boards")
+}
+
+model Post {
+  id        String   @id @default(cuid())
+  boardId   String   @map("board_id")
+  authorId  String   @map("author_id")
+  title     String
+  content   String
+  viewCount Int      @default(0) @map("view_count")
+  isHidden  Boolean  @default(false) @map("is_hidden")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  board     Board      @relation(fields: [boardId], references: [id])
+  author    User       @relation(fields: [authorId], references: [id])
+  comments  Comment[]
+  reactions Reaction[]
+  reports   Report[]
+  tags      PostTag[]
+  bookmarks Bookmark[]
+
+  @@index([boardId, createdAt])
+  @@index([authorId])
+  @@map("posts")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  parentId  String?  @map("parent_id")
+  content   String
+  isHidden  Boolean  @default(false) @map("is_hidden")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post      Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User       @relation(fields: [authorId], references: [id])
+  parent    Comment?   @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[]  @relation("CommentReplies")
+  reactions Reaction[]
+
+  @@index([postId, createdAt])
+  @@map("comments")
+}
+
+model Reaction {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String?  @map("post_id")
+  commentId String?  @map("comment_id")
+  emoji     String   // like, empathy, funny, sad, angry
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id])
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  comment Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId, emoji])
+  @@unique([userId, commentId, emoji])
+  @@map("reactions")
+}
+
+model Report {
+  id         String   @id @default(cuid())
+  reporterId String   @map("reporter_id")
+  postId     String?  @map("post_id")
+  reason     String   // spam, abuse, privacy, other
+  detail     String?
+  status     String   @default("pending") // pending, reviewed, dismissed
+  reviewedBy String?  @map("reviewed_by")
+  reviewedAt DateTime? @map("reviewed_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  reporter User  @relation("Reporter", fields: [reporterId], references: [id])
+  post     Post? @relation(fields: [postId], references: [id])
+
+  @@index([status])
+  @@map("reports")
+}
+
+model Sanction {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String   // warning, post_delete, temp_ban, perm_ban
+  reason    String
+  expiresAt DateTime? @map("expires_at")
+  issuedBy  String   @map("issued_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("sanctions")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String   // comment, reaction, sanction, system
+  title     String
+  body      String?
+  linkUrl   String?  @map("link_url")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model Tag {
+  id    String    @id @default(cuid())
+  name  String    @unique
+  posts PostTag[]
+
+  @@map("tags")
+}
+
+model PostTag {
+  postId String @map("post_id")
+  tagId  String @map("tag_id")
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  postId    String   @map("post_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@map("bookmarks")
+}
+
+// ═══════════════════════════════════════════
+// 재미 기능
+// ═══════════════════════════════════════════
+
+model LunchVote {
+  id        String   @id @default(cuid())
+  date      DateTime @db.Date
+  opensAt   DateTime @map("opens_at")
+  closesAt  DateTime @map("closes_at")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  options LunchOption[]
+  choices LunchVoteChoice[]
+
+  @@unique([date])
+  @@map("lunch_votes")
+}
+
+model LunchOption {
+  id          String @id @default(cuid())
+  lunchVoteId String @map("lunch_vote_id")
+  name        String
+  emoji       String?
+
+  lunchVote LunchVote       @relation(fields: [lunchVoteId], references: [id], onDelete: Cascade)
+  choices   LunchVoteChoice[]
+
+  @@map("lunch_options")
+}
+
+model LunchVoteChoice {
+  id            String   @id @default(cuid())
+  lunchVoteId   String   @map("lunch_vote_id")
+  lunchOptionId String   @map("lunch_option_id")
+  userId        String   @map("user_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  lunchVote   LunchVote   @relation(fields: [lunchVoteId], references: [id], onDelete: Cascade)
+  lunchOption LunchOption @relation(fields: [lunchOptionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([lunchVoteId, userId])
+  @@map("lunch_vote_choices")
+}
+
+model WorryBox {
+  id        String   @id @default(cuid())
+  authorId  String   @map("author_id")
+  content   String
+  isResolved Boolean @default(false) @map("is_resolved")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  author  User         @relation(fields: [authorId], references: [id])
+  replies WorryReply[]
+
+  @@map("worry_boxes")
+}
+
+model WorryReply {
+  id         String   @id @default(cuid())
+  worryBoxId String   @map("worry_box_id")
+  authorId   String   @map("author_id")
+  content    String
+  isAccepted Boolean  @default(false) @map("is_accepted")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  worryBox WorryBox @relation(fields: [worryBoxId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id])
+
+  @@map("worry_replies")
+}
+
+model EmotionShare {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  date      DateTime @db.Date
+  emoji     String   // happy, neutral, tired, sad, angry
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, date])
+  @@map("emotion_shares")
+}
+
+model BalanceGame {
+  id        String   @id @default(cuid())
+  question  String
+  optionA   String   @map("option_a")
+  optionB   String   @map("option_b")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  choices BalanceChoice[]
+
+  @@map("balance_games")
+}
+
+model BalanceChoice {
+  id            String   @id @default(cuid())
+  balanceGameId String   @map("balance_game_id")
+  userId        String   @map("user_id")
+  choice        String   // "A" or "B"
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  balanceGame BalanceGame @relation(fields: [balanceGameId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id])
+
+  @@unique([balanceGameId, userId])
+  @@map("balance_choices")
+}
+
+// ═══════════════════════════════════════════
+// 관리 & 감사
+// ═══════════════════════════════════════════
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  action    String   // create, update, delete, login, logout, sanction, etc.
+  target    String   // entity type (post, user, board, etc.)
+  targetId  String?  @map("target_id")
+  detail    Json?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Setting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value Json
+
+  @@map("settings")
+}
