@@ -207,11 +207,46 @@ Types: feat, fix, refactor, docs, test, chore, perf, ci
 
 ---
 
+## Runtime Isolation (절대 규칙, INC-20260406 이후 적용)
+
+> 이 규칙은 INC-20260406 사고 이후 도입된 절대 규칙이다.
+> 상세: docs/policies/product-runtime-isolation.md
+> 사고 보고서: docs/incidents/INC-20260406-paperclip-db-overwrite.md
+
+### Paperclip = Control Plane, SOKDAK = Product Runtime
+
+| 항목 | Paperclip | SOKDAK |
+|------|-----------|--------|
+| PostgreSQL | docker-db-1:**5432** / paperclip | sokdak-db:**5433** / sokdak |
+| Redis | - | sokdak-redis:**6380** |
+| Web | docker-server-1:**3100** | sokdak-web:**3000** |
+| Volume | docker_pgdata | sokdak-pgdata |
+
+### 절대 금지
+
+1. Paperclip DB에 SOKDAK migration 실행 금지
+2. Paperclip 컨테이너 안에서 prisma/drizzle CLI 실행 금지
+3. Paperclip DATABASE_URL을 SOKDAK 코드에서 사용 금지
+4. Agent workspace에서 DB migration 실행 금지
+
+### Dangerous Commands (CTO 승인 필요)
+
+- `prisma db push` / `prisma migrate reset` / `prisma migrate deploy`
+- `DROP TABLE` / `DROP DATABASE`
+- `docker compose down -v`
+
+### Agent Workspace 규칙
+
+에이전트는 workspace에서:
+- **허용**: 코드 읽기/쓰기, git commit/push, npm install, vitest
+- **금지**: prisma db push/migrate, docker compose, seed, DB 직접 접근
+
+---
+
 ## Paperclip 연동
 
 이 프로젝트는 Paperclip AI 플랫폼(GOO 회사)의 SOKDAK 프로젝트로 관리된다.
 - **Repo**: https://github.com/hshwang1994/sokdak
-- **Workspace**: `5362e549-b0e2-411f-88fd-c7dd2872d36b`
 - **Issues**: GOO-129 ~ GOO-173 (45개)
 - **Goals**: G1(기반) ~ G5(운영)
 - **Routines**: CEO/CTO/QA/Security/DevOps/CoS 주기적 리뷰
