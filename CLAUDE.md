@@ -53,14 +53,24 @@
 
 ---
 
-## 인증 모델
+## 인증 모델 (ADR-001: join_code → 이메일 OTP)
 
+> 상세: docs/architecture/ADR-001-auth-model-change.md
+
+### 가입 플로우
+
+```
+이메일 입력 (회사 도메인) → OTP 확인 (6자리, 5분) → 닉네임 + 비밀번호 설정 → 완료
+```
+
+- **허용 도메인**: goodmit.co.kr (기본), admin 설정 가능
+- **이메일 처리**: 가입 검증용으로만 사용, DB에는 SHA-256 해시만 저장, UI 노출 없음
 - **login_id**: 4-20자 영숫자 (로그인 전용, 비공개)
 - **display_nickname**: 2-12자 (게시판에 표시되는 닉네임)
 - **password**: Argon2id 해싱 (memory=64MB, time=3, parallelism=4)
-- **join_code**: 가입 시 필요한 초대 코드 (admin 발급)
 - **recovery_key**: 가입 시 1회 표시, bcrypt 해싱 저장
 - **session**: httpOnly 쿠키 + sessions 테이블, 최대 동시 3세션
+- **OTP 보안**: 5회 시도 제한 + 10분 잠금
 
 ### 역할 (5-Role RBAC)
 
@@ -68,8 +78,8 @@
 |------|------|
 | `user` | 글/댓글 CRUD, 투표, 감정 공유 |
 | `moderator` | + 신고 처리, 글 숨김/삭제 |
-| `admin` | + 게시판 관리, join_code 관리, 사용자 제재 |
-| `super_admin` | + 역할 변경, 시스템 설정 |
+| `admin` | + 게시판 관리, 도메인 관리, 사용자 제재 |
+| `super_admin` | + 역할 변경, 허용 도메인 관리, 시스템 설정 |
 | `audit_admin` | 읽기 전용 감사 로그 조회 (수정 불가) |
 
 ---
@@ -179,6 +189,18 @@ npm run test          # 단위 테스트 (Vitest)
 npm run test:e2e      # E2E 테스트 (Playwright)
 npm run test:coverage # 커버리지 리포트
 ```
+
+---
+
+## 디자인 원칙
+
+> SOKDAK은 기능만 되는 제품이 아니라, **아름답고 즐거운** 제품이어야 한다.
+
+- 상세: `docs/design/design-principles.md`
+- UI 시스템: `docs/design/ui-system.md`
+- UX 우선순위: `docs/design/ux-priority.md`
+
+핵심: 따뜻한 · 안전한 · 장난스러운 · 깔끔한 · 현대적인
 
 ---
 
