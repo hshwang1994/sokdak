@@ -1,0 +1,150 @@
+/**
+ * SOKDAK 디자인 토큰 (docs/design/ui-system.md 기준)
+ *
+ * 핵심 감성: 따뜻한 · 안전한 · 장난스러운 · 깔끔한 · 현대적인
+ */
+
+:root {
+  /* ─── 브랜드 ─── */
+  --sokdak-primary: 245 97 255;        /* #6C63FF → hsl(243, 100%, 69%) */
+  --sokdak-primary-light: 252 139 255; /* #8B83FF */
+  --sokdak-primary-dark: 234 79 229;   /* #4F46E5 */
+  --sokdak-secondary: 330 100 157;     /* #FF6B9D → 핑크 포인트 */
+  --sokdak-accent: 48 255 61;          /* #FFD93D → 강조 노랑 */
+
+  /* ─── 의미 색상 ─── */
+  --sokdak-success: 142 74 222;   /* #4ADE80 */
+  --sokdak-warning: 45 97 187;    /* #FBBF24 */
+  --sokdak-error: 0 87 248;       /* #F87171 */
+  --sokdak-info: 217 92 250;      /* #60A5FA */
+
+  /* ─── 감정 색상 (감정 공유) ─── */
+  --emotion-happy: 48 100 62;
+  --emotion-sad: 217 92 68;
+  --emotion-angry: 0 94 71;
+  --emotion-tired: 263 56 73;
+  --emotion-excited: 30 96 61;
+  --emotion-calm: 160 64 52;
+
+  /* ─── 간격 ─── */
+  --space-xs: 0.25rem;  /* 4px */
+  --space-sm: 0.5rem;   /* 8px */
+  --space-md: 0.75rem;  /* 12px */
+  --space-lg: 1rem;     /* 16px */
+  --space-xl: 1.5rem;   /* 24px */
+  --space-2xl: 2rem;    /* 32px */
+
+  /* ─── 모서리 ─── */
+  --radius-sm: 0.25rem; /* 4px — 뱃지, 태그 */
+  --radius-md: 0.5rem;  /* 8px — 버튼, 입력 */
+  --radius-lg: 0.75rem; /* 12px — 카드 */
+  --radius-xl: 1rem;    /* 16px — 모달, 바텀시트 */
+  --radius-full: 9999px;
+
+  /* ─── 그림자 ─── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-card: 0 2px 8px rgba(108, 99, 255, 0.08);
+
+  /* ─── 애니메이션 ─── */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* ─── 유틸리티 클래스 ─── */
+
+.card-sokdak {
+  background: hsl(var(--card));
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.card-sokdak:hover {
+  transform: scale(1.01);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-bounce:active {
+  transform: scale(0.95);
+  transition: transform 100ms ease;
+}
+
+/* ─── 감정 이모지 선택 ─── */
+.emotion-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.emotion-chip:hover {
+  transform: scale(1.1);
+}
+
+.emotion-chip[data-selected="true"] {
+  box-shadow: 0 0 0 2px hsl(var(--sokdak-primary));
+}
+
+/* ─── 리액션 버튼 ─── */
+.reaction-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  transition: transform var(--transition-fast);
+}
+
+.reaction-btn:hover {
+  transform: scale(1.2);
+}
+
+/* ─── 페이지 전환 애니메이션 ─── */
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: fadeSlideUp var(--transition-normal) ease-out;
+}
+
+/* ─── 카드 등장 stagger ─── */
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-card-enter {
+  animation: cardFadeIn var(--transition-slow) ease-out;
+}
+
+/* ─── 투표 프로그레스 바 ─── */
+@keyframes expandBar {
+  from { width: 0%; }
+}
+
+.animate-progress-expand {
+  animation: expandBar 500ms ease-out;
+}

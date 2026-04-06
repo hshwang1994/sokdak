@@ -27,6 +27,7 @@ model User {
   loginId         String   @unique @map("login_id")
   displayNickname String   @map("display_nickname")
   passwordHash    String   @map("password_hash")
+  emailHash       String?  @unique @map("email_hash") // SHA-256, 중복 가입 방지용 (ADR-001)
   recoveryKeyHash String?  @map("recovery_key_hash")
   role            Role     @default(user)
   isActive        Boolean  @default(true) @map("is_active")
@@ -68,10 +69,12 @@ model Session {
   @@map("sessions")
 }
 
+/// @deprecated join_code 방식은 ADR-001에 의해 이메일 OTP로 대체됨
+/// 기존 데이터 보존을 위해 모델은 유지하되, 신규 가입에는 사용하지 않음
 model JoinCode {
   id        String    @id @default(cuid())
   code      String    @unique
-  maxUses   Int       @default(0) @map("max_uses") // 0 = unlimited
+  maxUses   Int       @default(0) @map("max_uses")
   usedCount Int       @default(0) @map("used_count")
   expiresAt DateTime? @map("expires_at")
   isActive  Boolean   @default(true) @map("is_active")
@@ -79,6 +82,36 @@ model JoinCode {
   createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("join_codes")
+}
+
+// ═══════════════════════════════════════════
+// 이메일 OTP 인증 (ADR-001)
+// ═══════════════════════════════════════════
+
+/// 이메일 OTP 인증 요청. 원본 이메일은 검증 후 삭제되며, User에는 해시만 저장.
+model EmailVerification {
+  id        String   @id @default(cuid())
+  email     String   // 검증 완료 후 row 삭제 또는 만료 시 삭제
+  otpHash   String   @map("otp_hash") // SHA-256 해시
+  expiresAt DateTime @map("expires_at")
+  verified  Boolean  @default(false)
+  attempts  Int      @default(0) // 5회 초과 시 잠금
+  lockedUntil DateTime? @map("locked_until")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email, verified])
+  @@map("email_verifications")
+}
+
+/// 허용 이메일 도메인. super_admin만 관리 가능.
+model AllowedDomain {
+  id        String   @id @default(cuid())
+  domain    String   @unique // e.g. "goodmit.co.kr"
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("allowed_domains")
 }
 
 // ═══════════════════════════════════════════
